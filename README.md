@@ -9,6 +9,7 @@ A small desktop password manager built with Python and Tkinter.
 - Add, view, copy, and delete saved logins.
 - Generate passwords with configurable length and character types.
 - Change the master password and re-encrypt the vault.
+- Create a new vault or permanently delete the local database.
 
 ## Requirements
 
@@ -30,6 +31,8 @@ python GUI.py
 ```
 At first launch type in the master password you want to be set as the master password
 Enter the master password when the application starts. Use the vault screen to add and manage login details.
+
+If you forget the master password, use **Delete database** on the unlock screen to permanently remove the encrypted vault and start over. This cannot recover the old logins.
 
 ## Storage and security
 

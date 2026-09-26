@@ -76,6 +76,19 @@ def _save_logins(logins, master_password):
         file.write("\n")
 
 
+def create_vault(master_password):
+    """Create an empty encrypted vault with a new master password."""
+    if LOGIN_FILE.exists():
+        raise FileExistsError("A login vault already exists.")
+    _save_logins([], master_password)
+
+
+def delete_vault():
+    """Delete the local encrypted vault."""
+    if LOGIN_FILE.exists():
+        LOGIN_FILE.unlink()
+
+
 def encrypt_login_info(username, password, master_password):
     
     logins = _load_logins(master_password)

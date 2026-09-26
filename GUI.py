@@ -24,15 +24,23 @@ class PasswordManagerGUI:
         self.build_unlock_view()
 
     def build_unlock_view(self):
+        self.is_new_vault = not main.LOGIN_FILE.exists()
         self.unlock_frame = ttk.Frame(self.root, padding=48)
         self.unlock_frame.pack(expand=True)
         ttk.Label(self.unlock_frame, text="Pass Manager", style="Title.TLabel").pack(pady=(0, 8))
-        ttk.Label(self.unlock_frame, text="Unlock your encrypted login vault", style="Subtitle.TLabel").pack(pady=(0, 28))
-        ttk.Label(self.unlock_frame, text="Master password").pack(anchor="w")
+        subtitle = "Create your encrypted login vault" if self.is_new_vault else "Unlock your encrypted login vault"
+        action = "Create vault" if self.is_new_vault else "Unlock vault"
+        ttk.Label(self.unlock_frame, text=subtitle, style="Subtitle.TLabel").pack(pady=(0, 28))
+        ttk.Label(self.unlock_frame, text="Choose a master password" if self.is_new_vault else "Master password").pack(anchor="w")
         self.master_entry = ttk.Entry(self.unlock_frame, show="*", width=34)
         self.master_entry.pack(fill="x", pady=(6, 14))
+        if self.is_new_vault:
+            ttk.Label(self.unlock_frame, text="Confirm master password").pack(anchor="w")
+            self.confirm_master_entry = ttk.Entry(self.unlock_frame, show="*", width=34)
+            self.confirm_master_entry.pack(fill="x", pady=(6, 14))
         self.master_entry.bind("<Return>", lambda event: self.unlock())
-        ttk.Button(self.unlock_frame, text="Unlock vault", command=self.unlock).pack(fill="x")
+        ttk.Button(self.unlock_frame, text=action, command=self.unlock).pack(fill="x")
+        ttk.Button(self.unlock_frame, text="Delete database", command=self.delete_database).pack(fill="x", pady=(10, 0))
         self.unlock_status = ttk.Label(self.unlock_frame, style="Subtitle.TLabel")
         self.unlock_status.pack(pady=(14, 0))
         self.master_entry.focus_set()
@@ -42,14 +50,36 @@ class PasswordManagerGUI:
         if not password:
             self.unlock_status.configure(text="Enter your master password.")
             return
+        if self.is_new_vault and password != self.confirm_master_entry.get():
+            self.unlock_status.configure(text="The master passwords do not match.")
+            return
         try:
-            self.logins = main.get_all_logins(password)
+            if self.is_new_vault:
+                main.create_vault(password)
+                self.logins = []
+            else:
+                self.logins = main.get_all_logins(password)
         except (ValueError, KeyError, TypeError) as error:
             self.unlock_status.configure(text=str(error))
             return
         self.master_password = password
         self.unlock_frame.destroy()
         self.build_vault_view()
+
+    def delete_database(self):
+        if not main.LOGIN_FILE.exists():
+            self.unlock_status.configure(text="There is no database to delete.")
+            return
+        confirmed = messagebox.askyesno(
+            "Delete database",
+            "This permanently deletes all saved logins. Continue?",
+            icon="warning",
+        )
+        if not confirmed:
+            return
+        main.delete_vault()
+        self.unlock_frame.destroy()
+        self.build_unlock_view()
 
     def build_vault_view(self):
         frame = ttk.Frame(self.root, padding=24)
