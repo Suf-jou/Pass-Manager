@@ -76,12 +76,12 @@ class PasswordManagerGUI:
         self.login_table.configure(yscrollcommand=scrollbar.set)
 
         ttk.Label(details, text="Username").pack(anchor="w")
-        self.username_entry = ttk.Entry(details)
+        self.username_entry = ttk.Entry(details, state="readonly")
         self.username_entry.pack(fill="x", pady=(5, 14))
         ttk.Label(details, text="Password").pack(anchor="w")
         password_row = ttk.Frame(details)
         password_row.pack(fill="x", pady=(5, 18))
-        self.password_entry = ttk.Entry(password_row, show="*")
+        self.password_entry = ttk.Entry(password_row, show="*", state="readonly")
         self.password_entry.pack(side="left", fill="x", expand=True)
         ttk.Button(password_row, text="Show", command=self.toggle_password).pack(side="left", padx=(8, 0))
         ttk.Button(password_row, text="Copy", command=self.copy_password).pack(side="left", padx=(8, 0))
@@ -92,12 +92,41 @@ class PasswordManagerGUI:
         self.new_username.pack(fill="x", pady=(10, 6))
         self.new_password = ttk.Entry(details, show="*")
         self.new_password.pack(fill="x", pady=(0, 8))
+        generator_options = ttk.Frame(details)
+        generator_options.pack(fill="x", pady=(0, 10))
+        ttk.Label(generator_options, text="Length").pack(side="left")
+        self.password_length = tk.IntVar(value=12)
+        ttk.Spinbox(
+            generator_options,
+            from_=4,
+            to=64,
+            textvariable=self.password_length,
+            width=5,
+        ).pack(side="left", padx=(6, 12))
+        self.include_uppercase = tk.BooleanVar(value=True)
+        self.include_numbers = tk.BooleanVar(value=True)
+        self.include_special = tk.BooleanVar(value=True)
+        ttk.Checkbutton(
+            generator_options, text="A-Z", variable=self.include_uppercase
+        ).pack(side="left", padx=(0, 6))
+        ttk.Checkbutton(
+            generator_options, text="0-9", variable=self.include_numbers
+        ).pack(side="left", padx=(0, 6))
+        ttk.Checkbutton(
+            generator_options, text="Special", variable=self.include_special
+        ).pack(side="left")
         buttons = ttk.Frame(details)
         buttons.pack(fill="x")
         ttk.Button(buttons, text="Generate", command=self.generate_password).pack(side="left")
         ttk.Button(buttons, text="Save login", command=self.save_login).pack(side="right")
         ttk.Button(details, text="Delete selected login", command=self.delete_selected_login).pack(fill="x", side="bottom", pady=(18, 0))
         self.refresh_table()
+
+    def set_readonly_entry(self, entry, value):
+        entry.configure(state="normal")
+        entry.delete(0, "end")
+        entry.insert(0, value)
+        entry.configure(state="readonly")
 
     def refresh_table(self):
         for item in self.login_table.get_children():
@@ -110,10 +139,8 @@ class PasswordManagerGUI:
         if not selection:
             return
         login = self.logins[int(selection[0])]
-        self.username_entry.delete(0, "end")
-        self.username_entry.insert(0, login["username"])
-        self.password_entry.delete(0, "end")
-        self.password_entry.insert(0, login["password"])
+        self.set_readonly_entry(self.username_entry, login["username"])
+        self.set_readonly_entry(self.password_entry, login["password"])
         self.password_entry.configure(show="" if self.password_visible else "*")
 
     def toggle_password(self):
@@ -127,8 +154,27 @@ class PasswordManagerGUI:
             self.root.clipboard_append(password)
 
     def generate_password(self):
+        try:
+            length = self.password_length.get()
+        except tk.TclError:
+            messagebox.showwarning("Invalid length", "Choose a password length from 4 to 64.")
+            return
+        if length < 4 or length > 64:
+            messagebox.showwarning("Invalid length", "Choose a password length from 4 to 64.")
+            return
+        if not any((self.include_uppercase.get(), self.include_numbers.get(), self.include_special.get())):
+            messagebox.showwarning("Character options", "Select at least one character type.")
+            return
         self.new_password.delete(0, "end")
-        self.new_password.insert(0, main.generate_password())
+        self.new_password.insert(
+            0,
+            main.generate_password(
+                length=length,
+                include_special_chars=self.include_special.get(),
+                include_numbers=self.include_numbers.get(),
+                include_uppercase=self.include_uppercase.get(),
+            ),
+        )
 
     def save_login(self):
         username = self.new_username.get().strip()
@@ -160,8 +206,8 @@ class PasswordManagerGUI:
             messagebox.showerror("Could not delete login", str(error))
             return
         self.refresh_table()
-        self.username_entry.delete(0, "end")
-        self.password_entry.delete(0, "end")
+        self.set_readonly_entry(self.username_entry, "")
+        self.set_readonly_entry(self.password_entry, "")
 
     def change_master_password(self):
         dialog = tk.Toplevel(self.root)
